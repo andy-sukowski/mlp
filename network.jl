@@ -1,25 +1,44 @@
 # See LICENSE file for copyright and license details.
 
-# fill vectors and matrices
-function init(dims, z, a, w, b, ∇a, ∇w, ∇b, Σ∇w, Σ∇b)
-	len = length(dims)
+# network: weighted sums, activations, weights, biases, gradient
+mutable struct NN
+	dims :: Vector{Int}
+	   z :: Vector{Vector{Float64}}
+	   a :: Vector{Vector{Float64}}
+	   w :: Vector{Matrix{Float64}}
+	   b :: Vector{Vector{Float64}}
+	  ∇a :: Vector{Vector{Float64}}
+	  ∇w :: Vector{Matrix{Float64}}
+	  ∇b :: Vector{Vector{Float64}}
+	 Σ∇w :: Vector{Matrix{Float64}}
+	 Σ∇b :: Vector{Vector{Float64}}
+end
 
-	for i in 1:len
-		push!( a, Vector{Float64}(undef, dims[i]))
-		push!(∇a, Vector{Float64}(undef, dims[i]))
+Data = Vector{Tuple{Vector{Float64}, Vector{Float64}}}
+
+# fill vectors and matrices, needs improvement
+function init(dims :: Vector{Int}) :: NN
+	n = NN([], [], [], [], [], [], [], [], [], [])
+	n.dims = dims
+
+	for i in 1:length(dims)
+		push!(n.a,   Vector{Float64}(undef, dims[i]))
+		push!(n.∇a,  Vector{Float64}(undef, dims[i]))
 	end
 
-	for i in 2:len
-		push!( z,  Vector{Float64}(undef, dims[i]))
+	for i in 2:length(dims)
+		push!(n.z,   Vector{Float64}(undef, dims[i]))
 
-		push!( w,  randn(dims[i], dims[i - 1]))
-		push!(∇w,  Matrix{Float64}(undef, dims[i], dims[i - 1]))
-		push!(Σ∇w, Matrix{Float64}(undef, dims[i], dims[i - 1]))
+		push!(n.w,   randn(dims[i], dims[i - 1]))
+		push!(n.∇w,  Matrix{Float64}(undef, dims[i], dims[i - 1]))
+		push!(n.Σ∇w, Matrix{Float64}(undef, dims[i], dims[i - 1]))
 
-		push!( b,  randn(dims[i]))
-		push!(∇b,  Vector{Float64}(undef, dims[i]))
-		push!(Σ∇b, Vector{Float64}(undef, dims[i]))
+		push!(n.b,   randn(dims[i]))
+		push!(n.∇b,  Vector{Float64}(undef, dims[i]))
+		push!(n.Σ∇b, Vector{Float64}(undef, dims[i]))
 	end
+
+	return n
 end
 
 # leaky ReLU to avoid dead neurons
@@ -32,54 +51,54 @@ ReLU′(x) = x >= 0 ? 1 : 0.01
 const act  = σ
 const act′ = σ′
 
-function forward(len, z, a, w, b)
-	for i in 1:len - 1
-		z[i] = w[i] * a[i] + b[i]
-		a[i + 1] = act.(z[i])
+function forward!(n :: NN)
+	for i in 1:length(n.dims) - 1
+		n.z[i] = n.w[i] * n.a[i] + n.b[i]
+		n.a[i + 1] = act.(n.z[i])
 	end
 end
 
 cost(output, expected) = sum((output - expected) .^ 2)
 
-function backprop(dims, expected, z, a, w, ∇a, ∇w, ∇b)
-	len = length(dims)
+function backprop!(n :: NN, expected :: Vector{Float64})
+	len = length(n.dims)
 
-	∇a[len] = 2 .* (a[len] - expected)
+	n.∇a[len] = 2 .* (n.a[len] - expected)
 
 	for i in len - 1:-1:1
-		∇a[i] .= 0
-		∇b[i] = act′.(z[i]) .* ∇a[i + 1]
+		n.∇a[i] .= 0
+		n.∇b[i] = act′.(n.z[i]) .* n.∇a[i + 1]
 		for j in 1:dims[i + 1]
 			if i != 1
-				∇a[i] += w[i][j, :] .* ∇b[i][j]
+				n.∇a[i] += n.w[i][j, :] .* n.∇b[i][j]
 			end
-			∇w[i][j, :] = a[i] .* ∇b[i][j]
+			n.∇w[i][j, :] = n.a[i] .* n.∇b[i][j]
 		end
 	end
 end
 
 # data: [(input, expected)], only one batch!
-function train(dims, data, z, a, w, b, ∇a, ∇w, ∇b, Σ∇w, Σ∇b)
-	for i in 1:len - 1
-		Σ∇w[i] .= 0
-		Σ∇b[i] .= 0
+function train!(n :: NN, data :: Data) :: Float64
+	for i in 1:length(n.dims) - 1
+		n.Σ∇w[i] .= 0
+		n.Σ∇b[i] .= 0
 	end
 
 	Σcost = 0
 		
 	for d in data
-		a[1] = d[1]
-		forward(length(dims), z, a, w, b)
-		Σcost += cost(a[length(dims)], d[2]) / length(data)
+		n.a[1] = d[1]
+		forward!(n)
+		Σcost += cost(n.a[length(n.dims)], d[2]) / length(data)
 
-		backprop(dims, d[2], z, a, w, ∇a, ∇w, ∇b)
-		Σ∇w .+= ∇w / length(data)
-		Σ∇b .+= ∇b / length(data)
+		backprop!(n, d[2])
+		n.Σ∇w .+= n.∇w / length(data)
+		n.Σ∇b .+= n.∇b / length(data)
 	end
 
 	# play around with factor
-	w .-= 5 * Σ∇w
-	b .-= 5 * Σ∇b
+	n.w -= 5 * n.Σ∇w
+	n.b -= 5 * n.Σ∇b
 
 	return Σcost
 end
