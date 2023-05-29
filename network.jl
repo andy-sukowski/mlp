@@ -3,13 +3,16 @@
 # network: weighted sums, activations, weights, biases, gradient
 mutable struct NN
 	dims :: Vector{Int}
+
 	   z :: Vector{Vector{Float64}}
 	   a :: Vector{Vector{Float64}}
 	   w :: Vector{Matrix{Float64}}
 	   b :: Vector{Vector{Float64}}
+
 	  ∇a :: Vector{Vector{Float64}}
 	  ∇w :: Vector{Matrix{Float64}}
 	  ∇b :: Vector{Vector{Float64}}
+
 	 Σ∇w :: Vector{Matrix{Float64}}
 	 Σ∇b :: Vector{Vector{Float64}}
 end
@@ -33,7 +36,7 @@ function init(dims :: Vector{Int}) :: NN
 		push!(n.∇w,  Matrix{Float64}(undef, dims[i], dims[i - 1]))
 		push!(n.Σ∇w, Matrix{Float64}(undef, dims[i], dims[i - 1]))
 
-		push!(n.b,   randn(dims[i]))
+		push!(n.b,   zeros(dims[i]))
 		push!(n.∇b,  Vector{Float64}(undef, dims[i]))
 		push!(n.Σ∇b, Vector{Float64}(undef, dims[i]))
 	end
@@ -58,7 +61,7 @@ function forward!(n :: NN)
 	end
 end
 
-cost(output, expected) = sum((output - expected) .^ 2)
+loss(x, y) = sum((x - y) .^ 2)
 
 function backprop!(n :: NN, expected :: Vector{Float64})
 	len = length(n.dims)
@@ -66,39 +69,36 @@ function backprop!(n :: NN, expected :: Vector{Float64})
 	n.∇a[len] = 2 .* (n.a[len] - expected)
 
 	for i in len - 1:-1:1
-		n.∇a[i] .= 0
 		n.∇b[i] = act′.(n.z[i]) .* n.∇a[i + 1]
-		for j in 1:dims[i + 1]
-			if i != 1
-				n.∇a[i] += n.w[i][j, :] .* n.∇b[i][j]
-			end
-			n.∇w[i][j, :] = n.a[i] .* n.∇b[i][j]
+		n.∇w[i] = transpose(n.a[i]) .* n.∇b[i]
+		if i != 1
+			n.∇a[i] = transpose(n.w[i]) * n.∇b[i]
 		end
 	end
 end
 
 # data: [(input, expected)], only one batch!
-function train!(n :: NN, data :: Data) :: Float64
+function train!(n :: NN, data :: Data; η = 1 :: Float64) :: Float64
 	for i in 1:length(n.dims) - 1
 		n.Σ∇w[i] .= 0
 		n.Σ∇b[i] .= 0
 	end
 
-	Σcost = 0
-		
+	Σloss = 0
+
 	for d in data
 		n.a[1] = d[1]
 		forward!(n)
-		Σcost += cost(n.a[length(n.dims)], d[2]) / length(data)
+		Σloss += loss(n.a[length(n.dims)], d[2]) / length(data)
 
 		backprop!(n, d[2])
 		n.Σ∇w .+= n.∇w / length(data)
 		n.Σ∇b .+= n.∇b / length(data)
 	end
 
-	# play around with factor
-	n.w -= 5 * n.Σ∇w
-	n.b -= 5 * n.Σ∇b
+	# play around with learning rate η
+	n.w -= η * n.Σ∇w
+	n.b -= η * n.Σ∇b
 
-	return Σcost
+	return Σloss
 end

@@ -10,7 +10,7 @@ len = length(dims)
 n = init(dims)
 
 # batched training data: [[(input, expected)]]
-batches = [Data(undef, 100) for i in 1:1000]
+batches = [Data(undef, 10) for i in 1:100000]
 for batch in batches
 	for j in eachindex(batch)
 		in = rand(2) ./ 2 # because σ: ℝ → (0, 1)
@@ -19,7 +19,7 @@ for batch in batches
 end
 
 for batch in batches
-	@printf "Σcost = %.12f\n" train!(n, batch)
+	@printf "Σloss = %.12f\n" train!(n, batch, η=5)
 end
 
 println("\nTesting with random values:\n---------------------------")

@@ -19,7 +19,7 @@ for batch in batches
 end
 
 for batch in batches
-	@printf "Σcost = %.12f\n" train!(n, batch)
+	@printf "Σloss = %.12f\n" train!(n, batch, η=5)
 end
 
 println("\nTesting with random values:\n---------------------------")
