@@ -19,29 +19,40 @@ end
 
 Data = Vector{Tuple{Vector{Float64}, Vector{Float64}}}
 
-# fill vectors and matrices, needs improvement
+# fill vectors and matrices
 function init(dims :: Vector{Int}) :: NN
-	n = NN([], [], [], [], [], [], [], [], [], [])
-	n.dims = dims
+	len = length(dims)
+	nn = NN(dims,
+		Vector{Vector{Float64}}(undef, len),
+		Vector{Vector{Float64}}(undef, len),
+		Vector{Matrix{Float64}}(undef, len),
+		Vector{Vector{Float64}}(undef, len),
+		Vector{Vector{Float64}}(undef, len),
+		Vector{Matrix{Float64}}(undef, len),
+		Vector{Vector{Float64}}(undef, len),
+		Vector{Matrix{Float64}}(undef, len),
+		Vector{Vector{Float64}}(undef, len))
 
-	for i in 1:length(dims)
-		push!(n.a,   Vector{Float64}(undef, dims[i]))
-		push!(n.∇a,  Vector{Float64}(undef, dims[i]))
-	end
+	nn.a[1] = Vector{Float64}(undef, dims[1])
+	# only nn.a has first element, other vectors are shifted by 1
+	nn.z[1] = nn.a[1] = nn.∇a[1] = nn.b[1] = nn.∇b[1] = nn.Σ∇b[1] = []
+	nn.w[1] = nn.∇w[1] = nn.Σ∇w[1] = [;;]
 
 	for i in 2:length(dims)
-		push!(n.z,   Vector{Float64}(undef, dims[i]))
+		nn.z[i]   = Vector{Float64}(undef, dims[i])
+		nn.a[i]   = Vector{Float64}(undef, dims[1])
+		nn.∇a[i]  = Vector{Float64}(undef, dims[i])
 
-		push!(n.w,   randn(dims[i], dims[i - 1]))
-		push!(n.∇w,  Matrix{Float64}(undef, dims[i], dims[i - 1]))
-		push!(n.Σ∇w, Matrix{Float64}(undef, dims[i], dims[i - 1]))
+		nn.w[i]   = randn(dims[i], dims[i - 1])
+		nn.∇w[i]  = Matrix{Float64}(undef, dims[i], dims[i - 1])
+		nn.Σ∇w[i] = Matrix{Float64}(undef, dims[i], dims[i - 1])
 
-		push!(n.b,   zeros(dims[i]))
-		push!(n.∇b,  Vector{Float64}(undef, dims[i]))
-		push!(n.Σ∇b, Vector{Float64}(undef, dims[i]))
+		nn.b[i]   = zeros(dims[i])
+		nn.∇b[i]  = Vector{Float64}(undef, dims[i])
+		nn.Σ∇b[i] = Vector{Float64}(undef, dims[i])
 	end
 
-	return n
+	return nn
 end
 
 # leaky ReLU to avoid dead neurons
@@ -54,51 +65,54 @@ ReLU′(x) = x >= 0 ? 1 : 0.01
 const act  = σ
 const act′ = σ′
 
-function forward!(n :: NN)
-	for i in 1:length(n.dims) - 1
-		n.z[i] = n.w[i] * n.a[i] + n.b[i]
-		n.a[i + 1] = act.(n.z[i])
+function forward!(nn :: NN)
+	for i in 2:length(nn.dims)
+		nn.z[i] = nn.w[i] * nn.a[i - 1] + nn.b[i]
+		nn.a[i] = act.(nn.z[i])
 	end
+	return nothing
 end
 
-loss(x, y) = sum((x - y) .^ 2)
+loss(x, y)  = sum((x - y) .^ 2)
+loss′(x, y) = 2 .* (x - y)
 
-function backprop!(n :: NN, expected :: Vector{Float64})
-	len = length(n.dims)
+function backprop!(nn :: NN, expected :: Vector{Float64})
+	len = length(nn.dims)
 
-	n.∇a[len] = 2 .* (n.a[len] - expected)
+	nn.∇a[len] = loss′(nn.a[len], expected)
 
-	for i in len - 1:-1:1
-		n.∇b[i] = act′.(n.z[i]) .* n.∇a[i + 1]
-		n.∇w[i] = transpose(n.a[i]) .* n.∇b[i]
-		if i != 1
-			n.∇a[i] = transpose(n.w[i]) * n.∇b[i]
+	for i in len:-1:2
+		nn.∇b[i] = act′.(nn.z[i]) .* nn.∇a[i]
+		nn.∇w[i] = transpose(nn.a[i - 1]) .* nn.∇b[i]
+		if i > 2
+			nn.∇a[i - 1] = transpose(nn.w[i]) * nn.∇b[i]
 		end
 	end
+	return nothing
 end
 
 # data: [(input, expected)], only one batch!
-function train!(n :: NN, data :: Data; η = 1 :: Float64) :: Float64
-	for i in 1:length(n.dims) - 1
-		n.Σ∇w[i] .= 0
-		n.Σ∇b[i] .= 0
+function train!(nn :: NN, data :: Data; η = 1 :: Float64) :: Float64
+	for i in 2:length(nn.dims)
+		nn.Σ∇w[i] .= 0
+		nn.Σ∇b[i] .= 0
 	end
 
 	Σloss = 0
 
 	for d in data
-		n.a[1] = d[1]
-		forward!(n)
-		Σloss += loss(n.a[length(n.dims)], d[2]) / length(data)
+		nn.a[1] = d[1]
+		forward!(nn)
+		Σloss += loss(nn.a[length(nn.dims)], d[2]) / length(data)
 
-		backprop!(n, d[2])
-		n.Σ∇w .+= n.∇w / length(data)
-		n.Σ∇b .+= n.∇b / length(data)
+		backprop!(nn, d[2])
+		nn.Σ∇w += nn.∇w / length(data)
+		nn.Σ∇b += nn.∇b / length(data)
 	end
 
 	# play around with learning rate η
-	n.w -= η * n.Σ∇w
-	n.b -= η * n.Σ∇b
+	nn.w -= η * nn.Σ∇w
+	nn.b -= η * nn.Σ∇b
 
 	return Σloss
 end
