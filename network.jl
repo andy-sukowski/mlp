@@ -17,21 +17,24 @@ mutable struct NN
 	 Σ∇b :: Vector{Vector{Float64}}
 end
 
+# batch of data points
 Data = Vector{Tuple{Vector{Float64}, Vector{Float64}}}
 
 # fill vectors and matrices
 function init(dims :: Vector{Int}) :: NN
 	len = length(dims)
-	nn = NN(dims,
-		Vector{Vector{Float64}}(undef, len),
-		Vector{Vector{Float64}}(undef, len),
-		Vector{Matrix{Float64}}(undef, len),
-		Vector{Vector{Float64}}(undef, len),
-		Vector{Vector{Float64}}(undef, len),
-		Vector{Matrix{Float64}}(undef, len),
-		Vector{Vector{Float64}}(undef, len),
-		Vector{Matrix{Float64}}(undef, len),
-		Vector{Vector{Float64}}(undef, len))
+    nn = NN(
+		dims,
+        Vector{Vector{Float64}}(undef, len),
+        Vector{Vector{Float64}}(undef, len),
+        Vector{Matrix{Float64}}(undef, len),
+        Vector{Vector{Float64}}(undef, len),
+        Vector{Vector{Float64}}(undef, len),
+        Vector{Matrix{Float64}}(undef, len),
+        Vector{Vector{Float64}}(undef, len),
+        Vector{Matrix{Float64}}(undef, len),
+        Vector{Vector{Float64}}(undef, len)
+    )
 
 	nn.a[1] = Vector{Float64}(undef, dims[1])
 	# only nn.a has first element, other vectors are shifted by 1
@@ -51,7 +54,6 @@ function init(dims :: Vector{Int}) :: NN
 		nn.∇b[i]  = Vector{Float64}(undef, dims[i])
 		nn.Σ∇b[i] = Vector{Float64}(undef, dims[i])
 	end
-
 	return nn
 end
 
@@ -78,21 +80,20 @@ loss′(x, y) = 2 .* (x - y)
 
 function backprop!(nn :: NN, expected :: Vector{Float64})
 	len = length(nn.dims)
-
 	nn.∇a[len] = loss′(nn.a[len], expected)
 
 	for i in len:-1:2
 		nn.∇b[i] = act′.(nn.z[i]) .* nn.∇a[i]
-		nn.∇w[i] = transpose(nn.a[i - 1]) .* nn.∇b[i]
+		nn.∇w[i] = nn.a[i - 1]' .* nn.∇b[i]
 		if i > 2
-			nn.∇a[i - 1] = transpose(nn.w[i]) * nn.∇b[i]
+			nn.∇a[i - 1] = nn.w[i]' * nn.∇b[i]
 		end
 	end
 	return nothing
 end
 
 # data: [(input, expected)], only one batch!
-function train!(nn :: NN, data :: Data; η = 1 :: Float64) :: Float64
+function train!(nn :: NN, data :: Data; η=1 :: Float64) :: Float64
 	for i in 2:length(nn.dims)
 		nn.Σ∇w[i] .= 0
 		nn.Σ∇b[i] .= 0
