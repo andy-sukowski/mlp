@@ -93,7 +93,7 @@ function backprop!(nn :: NN, expected :: Vector{Float64})
 end
 
 # data: [(input, expected)], only one batch!
-function train!(nn :: NN, data :: Data; η=1 :: Float64) :: Float64
+function train!(nn :: NN, data :: Data; η=1.0 :: Float64) :: Float64
 	for i in 2:length(nn.dims)
 		nn.Σ∇w[i] .= 0
 		nn.Σ∇b[i] .= 0

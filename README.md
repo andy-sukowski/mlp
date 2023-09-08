@@ -17,7 +17,7 @@ nn = init(dims)
 ```
 
 Then train the network on a data batch of type `Data` (defined in
-[network.jl][1]. The `train!()` function modifies the networks
+[network.jl][1]). The `train!()` function modifies the networks
 parameters based on the average gradient across all data points.
 Optionally, the learning rate `η` can be passed (default `η=1`). The
 function returns the average loss of the network.
@@ -32,13 +32,21 @@ can also be called manually. Have a look at the [examples][2].
 
 ## Gradient equations
 
-![forward propagation equation](./forward.svg)
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="./images/forward.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="./images/forward_inv.svg">
+  <img alt="forward propagation equation" src="./images/forward.svg">
+</picture>
 
 Based on the above equation, one can infer the partial derivatives of
 the biases, weights and activations with respect to the loss / cost
 using the chain rule.
 
-![derivatives of biases, weights and activations](./gradient.svg)
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="./images/gradient.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="./images/gradient_inv.svg">
+  <img alt="derivatives of biases, kernels and activations" src="./images/gradient.svg">
+</picture>
 
 The `backprop!()` function from [network.jl][1] is optimized and
 vectorized, so the equations look different than above.

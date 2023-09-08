@@ -5,8 +5,6 @@ using Printf
 include("../network.jl")
 
 dims = [1, 10, 10, 10, 1]
-len = length(dims)
-
 nn = init(dims)
 
 # batched training data: [[(input, expected)]]
@@ -18,8 +16,10 @@ for batch in batches
 	end
 end
 
-for batch in batches
-	@printf "Σloss = %.12f\n" train!(nn, batch, η=5)
+Σloss = Vector{Float64}(undef, length(batches))
+for i in eachindex(batches)
+	Σloss[i] = train!(nn, batches[i], η=5)
+	@printf "Σloss[%d] = %.12f\n" i Σloss[i]
 end
 
 println("\nTesting with random values:\n---------------------------")
@@ -27,5 +27,5 @@ for i in 1:10
 	nn.a[1][1] = rand() * pi * 2
 	forward!(nn)
 	expected = sin(nn.a[1][1]) / 2 + 0.5
-	@printf "sin(%.6f) = %.6f | NN: %.6f\n" nn.a[1][1] expected nn.a[len][1]
+	@printf "sin(%.6f) = %.6f | NN: %.6f\n" nn.a[1][1] expected last(nn.a)[1]
 end
