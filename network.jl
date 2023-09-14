@@ -94,10 +94,8 @@ end
 
 # data: [(input, expected)], only one batch!
 function train!(nn :: NN, data :: Data; η=1.0 :: Float64) :: Float64
-	for i in 2:length(nn.dims)
-		nn.Σ∇w[i] .= 0
-		nn.Σ∇b[i] .= 0
-	end
+	fill!.(nn.Σ∇w, 0)
+	fill!.(nn.Σ∇b, 0)
 
 	Σloss = 0
 

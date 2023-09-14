@@ -19,7 +19,7 @@ nn = init(dims)
 Then train the network on a data batch of type `Data` (defined in
 [network.jl][1]). The `train!()` function modifies the networks
 parameters based on the average gradient across all data points.
-Optionally, the learning rate `η` can be passed (default `η=1`). The
+Optionally, the learning rate `η` can be passed (default `η=1.0`). The
 function returns the average loss of the network.
 
 ```julia
