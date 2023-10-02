@@ -1,11 +1,11 @@
 # See LICENSE file for copyright and license details.
-#
+
 using Printf
 using MLDatasets
 
 include("../network.jl")
 
-function one_hot(d :: Int, n :: Int) :: Vector{Int}
+function one_hot(d::Int, n::Int)::Vector{Int}
 	out = zeros(n)
 	out[d] = 1
 	return out
@@ -18,7 +18,7 @@ nn = init(dims)
 train_x, train_y = MNIST(split=:train)[:]
 inputs = vec.(copy.(eachslice(Float64.(train_x), dims=3)))
 expected = Vector{Float64}.(one_hot.(train_y .+ 1, 10))
-data = collect(zip(inputs, expected)) :: Data
+data = collect(zip(inputs, expected))::Data
 
 # number of batches: 60000 / batch_size
 batch_size = 10

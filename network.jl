@@ -2,39 +2,60 @@
 
 # network: weighted sums, activations, weights, biases, gradient
 mutable struct NN
-	dims :: Vector{Int}
+	dims::Vector{Int}
 
-	   z :: Vector{Vector{Float64}}
-	   a :: Vector{Vector{Float64}}
-	   w :: Vector{Matrix{Float64}}
-	   b :: Vector{Vector{Float64}}
+	act ::Function
+	act′::Function
 
-	  ∇a :: Vector{Vector{Float64}}
-	  ∇w :: Vector{Matrix{Float64}}
-	  ∇b :: Vector{Vector{Float64}}
+	   z::Vector{Vector{Float64}}
+	   a::Vector{Vector{Float64}}
+	   w::Vector{Matrix{Float64}}
+	   b::Vector{Vector{Float64}}
 
-	 Σ∇w :: Vector{Matrix{Float64}}
-	 Σ∇b :: Vector{Vector{Float64}}
+	  ∇a::Vector{Vector{Float64}}
+	  ∇w::Vector{Matrix{Float64}}
+	  ∇b::Vector{Vector{Float64}}
+
+	 Σ∇w::Vector{Matrix{Float64}}
+	 Σ∇b::Vector{Vector{Float64}}
 end
 
 # batch of data points
 Data = Vector{Tuple{Vector{Float64}, Vector{Float64}}}
 
+# Rectified Linear Unit (ReLU)
+relu(x)  = max(0, x)
+relu′(x) = x < 0 ? 0 : 1
+
+# leaky ReLU to avoid dead neurons
+lrelu(x)  = max(0.01, x)
+lrelu′(x) = x < 0 ? 0.01 : 1
+
+# sigmoid
+σ(x)  = 1 / (1 + exp(-x))
+σ′(x) = σ(x) * (1 - σ(x))
+
+# hyperbolic tangent
+tanh(x)  = (exp(x) - exp(-x)) / (exp(x) + exp(-x))
+tanh′(x) = 1 - tanh(x)^2
+
 # fill vectors and matrices
-function init(dims :: Vector{Int}) :: NN
+function init(dims::Vector{Int}; act=σ, act′=σ′)::NN
 	len = length(dims)
-    nn = NN(
+	nn = NN(
 		dims,
-        Vector{Vector{Float64}}(undef, len),
-        Vector{Vector{Float64}}(undef, len),
-        Vector{Matrix{Float64}}(undef, len),
-        Vector{Vector{Float64}}(undef, len),
-        Vector{Vector{Float64}}(undef, len),
-        Vector{Matrix{Float64}}(undef, len),
-        Vector{Vector{Float64}}(undef, len),
-        Vector{Matrix{Float64}}(undef, len),
-        Vector{Vector{Float64}}(undef, len)
-    )
+		act ,
+		act′,
+		Vector{Vector{Float64}}(undef, len),
+		Vector{Vector{Float64}}(undef, len),
+		Vector{Matrix{Float64}}(undef, len),
+		Vector{Vector{Float64}}(undef, len),
+		Vector{Vector{Float64}}(undef, len),
+		Vector{Matrix{Float64}}(undef, len),
+		Vector{Vector{Float64}}(undef, len),
+		Vector{Matrix{Float64}}(undef, len),
+		Vector{Vector{Float64}}(undef, len)
+	)
 
 	nn.a[1] = Vector{Float64}(undef, dims[1])
 	# only nn.a has first element, other vectors are shifted by 1
@@ -57,20 +78,10 @@ function init(dims :: Vector{Int}) :: NN
 	return nn
 end
 
-# leaky ReLU to avoid dead neurons
-ReLU(x)  = max(0.01 * x, x)
-ReLU′(x) = x >= 0 ? 1 : 0.01
-
-σ(x)  = 1 / (1 + exp(-x))
-σ′(x) = σ(x) * (1 - σ(x))
-
-const act  = σ
-const act′ = σ′
-
-function forward!(nn :: NN)
+function forward!(nn::NN)
 	for i in 2:length(nn.dims)
 		nn.z[i] = nn.w[i] * nn.a[i - 1] + nn.b[i]
-		nn.a[i] = act.(nn.z[i])
+		nn.a[i] = nn.act.(nn.z[i])
 	end
 	return nothing
 end
@@ -78,12 +89,12 @@ end
 loss(x, y)  = sum((x - y) .^ 2)
 loss′(x, y) = 2 .* (x - y)
 
-function backprop!(nn :: NN, expected :: Vector{Float64})
+function backprop!(nn::NN, expected::Vector{Float64})
 	len = length(nn.dims)
 	nn.∇a[len] = loss′(nn.a[len], expected)
 
 	for i in len:-1:2
-		nn.∇b[i] = act′.(nn.z[i]) .* nn.∇a[i]
+		nn.∇b[i] = nn.act′.(nn.z[i]) .* nn.∇a[i]
 		nn.∇w[i] = nn.a[i - 1]' .* nn.∇b[i]
 		if i > 2
 			nn.∇a[i - 1] = nn.w[i]' * nn.∇b[i]
@@ -93,7 +104,7 @@ function backprop!(nn :: NN, expected :: Vector{Float64})
 end
 
 # data: [(input, expected)], only one batch!
-function train!(nn :: NN, data :: Data; η=1.0 :: Float64) :: Float64
+function train!(nn::NN, data::Data; η=1.0::Float64)::Float64
 	fill!.(nn.Σ∇w, 0)
 	fill!.(nn.Σ∇b, 0)
 

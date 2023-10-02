@@ -17,7 +17,7 @@ for batch in batches
 end
 
 Σloss = Vector{Float64}(undef, length(batches))
-for i in eachindex(batches)
+@time for i in eachindex(batches)
 	Σloss[i] = train!(nn, batches[i], η=5)
 	@printf "Σloss[%d] = %.12f\n" i Σloss[i]
 end
