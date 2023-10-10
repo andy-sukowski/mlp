@@ -86,14 +86,12 @@ function forward!(nn::NN)
 	return nothing
 end
 
+# squared error loss (SEL)
 loss(x, y)  = sum((x - y) .^ 2)
 loss′(x, y) = 2 .* (x - y)
 
-function backprop!(nn::NN, expected::Vector{Float64})
-	len = length(nn.dims)
-	nn.∇a[len] = loss′(nn.a[len], expected)
-
-	for i in len:-1:2
+function backprop!(nn::NN)
+	for i in length(nn.dims):-1:2
 		nn.∇b[i] = nn.act′.(nn.z[i]) .* nn.∇a[i]
 		nn.∇w[i] = nn.a[i - 1]' .* nn.∇b[i]
 		if i > 2
@@ -113,9 +111,10 @@ function train!(nn::NN, data::Data; η=1.0::Float64)::Float64
 	for d in data
 		nn.a[1] = d[1]
 		forward!(nn)
-		Σloss += loss(nn.a[length(nn.dims)], d[2]) / length(data)
+		Σloss += loss(nn.a[end], d[2]) / length(data)
 
-		backprop!(nn, d[2])
+		nn.∇a[end] = loss′(nn.a[end], d[2])
+		backprop!(nn)
 		nn.Σ∇w += nn.∇w / length(data)
 		nn.Σ∇b += nn.∇b / length(data)
 	end

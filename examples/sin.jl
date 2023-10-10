@@ -1,6 +1,7 @@
 # See LICENSE file for copyright and license details.
 
 using Printf
+using ProgressMeter
 
 include("../network.jl")
 
@@ -11,21 +12,18 @@ nn = init(dims, act=tanh, act′=tanh′)
 batches = [Data(undef, 5) for i in 1:100000]
 for batch in batches
 	for j in eachindex(batch)
-		x = rand() * π * 2 - 1
+		x = rand() * 2 * π - π
 		batch[j] = ([x], [sin(x)])
 	end
 end
 
-Σloss = Vector{Float64}(undef, length(batches))
-@time for i in eachindex(batches)
-	Σloss[i] = train!(nn, batches[i], η=0.15)
-	@printf "Σloss[%d] = %.12f\n" i Σloss[i]
-end
+# average loss for each batch
+Σlosses = Vector{Float64}(undef, length(batches))
 
-println("\nTesting with random values:\n---------------------------")
-for i in 1:10
-	nn.a[1][1] = rand() * π * 2 - 1
-	forward!(nn)
-	expected = sin(nn.a[1][1])
-	@printf "sin(%+.6f) = %+.6f | NN: %+.6f\n" nn.a[1][1] expected last(nn.a)[1]
+p = Progress(length(batches); desc="Training:", dt=0.1, barlen=16)
+for i in eachindex(batches)
+	Σlosses[i] = train!(nn, batches[i], η=0.15)
+	next!(p; showvalues = [(:batch, i),
+		(:loss, @sprintf("%0.16f", Σlosses[i]))])
 end
+finish!(p)

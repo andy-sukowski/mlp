@@ -1,7 +1,8 @@
 # See LICENSE file for copyright and license details.
 
 using Printf
-using MLDatasets
+using MLDatasets: MNIST
+using ProgressMeter
 
 include("../network.jl")
 
@@ -24,11 +25,16 @@ data = collect(zip(inputs, expected))::Data
 batch_size = 10
 batches = copy.(eachcol(reshape(data, batch_size, :)))
 
-Σloss = Vector{Float64}(undef, length(batches))
-@time for i in eachindex(batches)
-	Σloss[i] = train!(nn, batches[i])
-	@printf "Σloss[%d] = %.12f\n" i Σloss[i]
+# average loss for each batch
+Σlosses = Vector{Float64}(undef, length(batches))
+
+p = Progress(length(batches); desc="Training:", dt=0.1, barlen=16)
+for i in eachindex(batches)
+	Σlosses[i] = train!(nn, batches[i])
+	next!(p; showvalues = [(:batch, i),
+		(:loss, @sprintf("%0.16f", Σlosses[i]))])
 end
+finish!(p)
 
 # load MNIST test dataset
 test_x, test_y = MNIST(split=:test)[:]
@@ -40,4 +46,4 @@ for i in eachindex(test_inputs)
 	forward!(nn)
 	global matches += argmax(last(nn.a)) - 1 == test_y[i]
 end
-@printf "\nAccuracy on test dataset: %.12f\n" matches / length(test_y)
+println("Accuracy on test dataset: ", matches / length(test_y))
