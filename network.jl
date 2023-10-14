@@ -20,7 +20,7 @@ mutable struct NN
 	 Σ∇b::Vector{Vector{Float64}}
 end
 
-# batch of data points
+# training data, only one batch!
 Data = Vector{Tuple{Vector{Float64}, Vector{Float64}}}
 
 # Rectified Linear Unit (ReLU)
@@ -58,13 +58,14 @@ function init(dims::Vector{Int}; act=σ, act′=σ′)::NN
 	)
 
 	nn.a[1] = Vector{Float64}(undef, dims[1])
-	# only nn.a has first element, other vectors are shifted by 1
-	nn.z[1] = nn.a[1] = nn.∇a[1] = nn.b[1] = nn.∇b[1] = nn.Σ∇b[1] = []
+	nn.∇a[1] = Vector{Float64}(undef, dims[1])
+	# only nn.a and nn.∇a have first element, other vectors are shifted by 1
+	nn.z[1] = nn.b[1] = nn.∇b[1] = nn.Σ∇b[1] = []
 	nn.w[1] = nn.∇w[1] = nn.Σ∇w[1] = [;;]
 
 	for i in 2:length(dims)
 		nn.z[i]   = Vector{Float64}(undef, dims[i])
-		nn.a[i]   = Vector{Float64}(undef, dims[1])
+		nn.a[i]   = Vector{Float64}(undef, dims[i])
 		nn.∇a[i]  = Vector{Float64}(undef, dims[i])
 
 		nn.w[i]   = randn(dims[i], dims[i - 1])
@@ -80,8 +81,8 @@ end
 
 function forward!(nn::NN)
 	for i in 2:length(nn.dims)
-		nn.z[i] = nn.w[i] * nn.a[i - 1] + nn.b[i]
-		nn.a[i] = nn.act.(nn.z[i])
+		nn.z[i] .= nn.w[i] * nn.a[i - 1] + nn.b[i]
+		nn.a[i] .= nn.act.(nn.z[i])
 	end
 	return nothing
 end
@@ -92,10 +93,10 @@ loss′(x, y) = 2 .* (x - y)
 
 function backprop!(nn::NN)
 	for i in length(nn.dims):-1:2
-		nn.∇b[i] = nn.act′.(nn.z[i]) .* nn.∇a[i]
-		nn.∇w[i] = nn.a[i - 1]' .* nn.∇b[i]
+		nn.∇b[i] .= nn.act′.(nn.z[i]) .* nn.∇a[i]
+		nn.∇w[i] .= nn.a[i - 1]' .* nn.∇b[i]
 		if i > 2
-			nn.∇a[i - 1] = nn.w[i]' * nn.∇b[i]
+			nn.∇a[i - 1] .= nn.w[i]' * nn.∇b[i]
 		end
 	end
 	return nothing
@@ -109,7 +110,7 @@ function train!(nn::NN, data::Data; η=1.0::Float64)::Float64
 	Σloss = 0
 
 	for d in data
-		nn.a[1] = d[1]
+		nn.a[1] .= d[1]
 		forward!(nn)
 		Σloss += loss(nn.a[end], d[2]) / length(data)
 
