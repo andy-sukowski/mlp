@@ -3,7 +3,7 @@
 using Printf
 using ProgressMeter
 
-include("../network.jl")
+include("../nn.jl")
 
 dims = [1, 10, 10, 10, 1]
 nn = init(dims, act=tanh, act′=tanh′)

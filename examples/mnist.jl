@@ -4,7 +4,7 @@ using Printf
 using MLDatasets: MNIST
 using ProgressMeter
 
-include("../network.jl")
+include("../nn.jl")
 
 function one_hot(d::Int, n::Int)::Vector{Int}
 	out = zeros(n)
@@ -40,10 +40,6 @@ finish!(p)
 test_x, test_y = MNIST(split=:test)[:]
 test_inputs = vec.(copy.(eachslice(Float64.(test_x), dims=3)))
 
-matches = 0
-for i in eachindex(test_inputs)
-	nn.a[1] = test_inputs[i]
-	forward!(nn)
-	global matches += argmax(last(nn.a)) - 1 == test_y[i]
-end
-println("Accuracy on test dataset: ", matches / length(test_y))
+matches = argmax.(forward!.((nn,), test_inputs)) .- 1 .== test_y
+accuracy = sum(matches) / length(test_y)
+println("Accuracy on test dataset: ", accuracy)

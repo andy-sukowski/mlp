@@ -79,19 +79,21 @@ function init(dims::Vector{Int}; act=σ, act′=σ′)::NN
 	return nn
 end
 
-function forward!(nn::NN)
+function forward!(nn::NN, input::Vector{Float64})::Vector{Float64}
+	nn.a[1] .= input
 	for i in 2:length(nn.dims)
 		nn.z[i] .= nn.w[i] * nn.a[i - 1] + nn.b[i]
 		nn.a[i] .= nn.act.(nn.z[i])
 	end
-	return nothing
+	return nn.a[end]
 end
 
 # squared error loss (SEL)
 loss(x, y)  = sum((x - y) .^ 2)
 loss′(x, y) = 2 .* (x - y)
 
-function backprop!(nn::NN)
+function backprop!(nn::NN, ∇output::Vector{Float64})::Vector{Float64}
+	nn.∇a[end] .= ∇output
 	for i in length(nn.dims):-1:2
 		nn.∇b[i] .= nn.act′.(nn.z[i]) .* nn.∇a[i]
 		nn.∇w[i] .= nn.a[i - 1]' .* nn.∇b[i]
@@ -99,7 +101,7 @@ function backprop!(nn::NN)
 			nn.∇a[i - 1] .= nn.w[i]' * nn.∇b[i]
 		end
 	end
-	return nothing
+	return nn.∇a[1]
 end
 
 # data: [(input, expected)], only one batch!
@@ -110,12 +112,10 @@ function train!(nn::NN, data::Data; η=1.0::Float64)::Float64
 	Σloss = 0
 
 	for d in data
-		nn.a[1] .= d[1]
-		forward!(nn)
-		Σloss += loss(nn.a[end], d[2]) / length(data)
+		output = forward!(nn, d[1])
+		Σloss += loss(output, d[2]) / length(data)
+		backprop!(nn, loss′(output, d[2]))
 
-		nn.∇a[end] = loss′(nn.a[end], d[2])
-		backprop!(nn)
 		nn.Σ∇w += nn.∇w / length(data)
 		nn.Σ∇b += nn.∇b / length(data)
 	end
