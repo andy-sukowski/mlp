@@ -4,7 +4,7 @@ using Printf
 using MLDatasets: MNIST
 using ProgressMeter
 
-include("../nn.jl")
+include("../mlp.jl")
 
 function one_hot(d::Int, n::Int)::Vector{Int}
 	out = zeros(n)

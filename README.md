@@ -1,15 +1,15 @@
-# nn - neural network
+# Multilayer Perceptron
 
-This is a simple artificial neural network, specifically a multilayer
-perceptron (MLP), written from scratch in Julia.
+A simple multilayer perceptron (MLP), also known as a fully connected
+feedforward artificial neural network, written from scratch in Julia.
 
 ## Usage
 
 First, initialize the neural network by filling the `NN` structure from
-[nn.jl][1] according to the networks dimensions.
+[mlp.jl][1] according to the networks dimensions.
 
 ```julia
-include("nn.jl")
+include("mlp.jl")
 
 # size of each layer
 dims = [784, 100, 20, 10]
@@ -17,10 +17,10 @@ nn = init(dims)
 ```
 
 Then train the network on a data batch of type `Data` (defined in
-[nn.jl][1]). The `train!()` function modifies the networks
-parameters based on the average gradient across all data points.
-Optionally, the learning rate `η` can be passed (default `η=1.0`). The
-function returns the average loss of the network.
+[mlp.jl][1]). The `train!()` function modifies the networks parameters
+based on the average gradient across all data points. Optionally, the
+learning rate `η` can be passed (default `η=1.0`). The function returns
+the average loss of the network.
 
 ```julia
 train!(nn, batch, η=0.001)
@@ -48,8 +48,8 @@ using the chain rule.
   <img alt="derivatives of biases, kernels and activations" src="./images/gradient.svg">
 </picture>
 
-The `backprop!()` function from [nn.jl][1] is optimized and
+The `backprop!()` function from [mlp.jl][1] is optimized and
 vectorized, so the equations look different than above.
 
-[1]: ./nn.jl
+[1]: ./mlp.jl
 [2]: ./examples/
