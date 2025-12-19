@@ -28,7 +28,7 @@ relu(x)  = max(0, x)
 relu′(x) = x < 0 ? 0 : 1
 
 # leaky ReLU to avoid dead neurons
-lrelu(x)  = max(0.01, x)
+lrelu(x)  = x < 0 ? 0.01 * x : x
 lrelu′(x) = x < 0 ? 0.01 : 1
 
 # sigmoid
